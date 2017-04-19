@@ -1,0 +1,31 @@
+---
+title: "EDA"
+author: "Alex Solarski"
+date: "April 19, 2017"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+
+file_name <- 'Batting.csv'
+
+data <- read_csv(file_name)
+```
+
+```{r}
+data <- data %>% mutate(batting_avg = H/AB)
+
+ggplot(data = data) +
+  geom_jitter(mapping = aes(x=yearID, y=HR))
+
+average_homeruns <- data %>% group_by(yearID) %>% summarise(avg_hr = mean(HR))
+
+lin_reg <- lm(avg_hr ~ yearID, average_homeruns)
+summary(lin_reg)
+
+ggplot(data = average_homeruns, mapping = aes(x=yearID, y=avg_hr)) +
+  geom_line() +
+  stat_smooth(method = "lm", col = "red")
+```
