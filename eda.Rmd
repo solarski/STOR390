@@ -7,6 +7,7 @@ output: html_document
 
 ```{r}
 library(tidyverse)
+library(lazyeval)
 library(dplyr)
 
 file_name <- 'Batting.csv'
@@ -28,10 +29,12 @@ ggplot(data = batting_data) +
   geom_jitter(mapping = aes(x=yearID, y=batting_avg))
 ```
 
-It appears there isn't a huge trend, just a wide range of batting averages.
+It appears there isn't really a trend between year and batting average as the values are all over the place. 
 
 ```{r}
-sum_data <- batting_data %>% group_by(yearID) %>% summarise(avg_hr = mean(HR), max_hr = max(HR))
+group <- "yearID"
+col <- "HR"
+sum_data <- batting_data %>% group_by_(group) %>% summarise_(avg_hr = interp(~mean(var, na.rm=TRUE), var = as.name(col)))
 
 lin_reg <- lm(avg_hr ~ yearID, average_homeruns)
 summary(lin_reg)
@@ -109,11 +112,11 @@ As we assumed, it is very difficult to predict salary based on just one data poi
 
 Because of the vast amount of data and the number of confounding variables, we have decided to build a shiny app which will allow users to explore the data. We plan to build an app that will:
 
--Allow users to select up to two tables to select data from
+-DONE - Allow users to select up to two tables to select data from 
 -Allow users to select a date range to view results from
--Allow users to select an X and Y variable to plot
--Allow users to toggle between data points and an average or median line
--Allow users to have a linear regression on the plot w/ results
+-DONE - Allow users to select an X and Y variable to plot
+-DONE - Allow users to toggle between data points and an average or median line
+-DONE - Allow users to have a linear regression on the plot w/ results
 -Allow users to animate a plot over time
 -Allow users to pick a league to analyze, or analyze each side by side
 -Pick a team to analyze
