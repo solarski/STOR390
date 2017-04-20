@@ -11,21 +11,114 @@ library(dplyr)
 
 file_name <- 'Batting.csv'
 
-data <- read_csv(file_name)
+batting_data <- read_csv(file_name)
 ```
 
+
 ```{r}
-data <- data %>% mutate(batting_avg = H/AB)
+batting_data <- batting_data %>% mutate(batting_avg = `H`/`AB`)
+batting_data <- batting_data %>% mutate(`1B` = `H` - `2B` - `3B` - `HR`,
+                        slugging_avg = (`1B` + `2B`*2 + `3B`*3 + `HR`*4)/`AB`,
+                        base_avg = (`1B` + `2B`*2 + `3B`*3 + `HR`*4))
+```
 
-ggplot(data = data) +
-  geom_jitter(mapping = aes(x=yearID, y=HR))
 
-average_homeruns <- data %>% group_by(yearID) %>% summarise(avg_hr = mean(HR))
+```{r}
+ggplot(data = batting_data) +
+  geom_jitter(mapping = aes(x=yearID, y=batting_avg))
+```
+
+It appears there isn't a huge trend, just a wide range of batting averages.
+
+```{r}
+sum_data <- batting_data %>% group_by(yearID) %>% summarise(avg_hr = mean(HR), max_hr = max(HR))
 
 lin_reg <- lm(avg_hr ~ yearID, average_homeruns)
 summary(lin_reg)
 
-ggplot(data = average_homeruns, mapping = aes(x=yearID, y=avg_hr)) +
-  geom_line() +
-  stat_smooth(method = "lm", col = "red")
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=avg_hr)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=avg_hr))
+
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=max_hr))
 ```
+
+There is a pretty consistent increase in home runs per person with a correlation of .78, so we feel like this is something to look more in to. COnsidering that the average does not take in to account the large number of players that play primarily defensive positions, we also chose to look at the maximum number of HRs per year. It turns out that there is a large cultural shift in the 1920's started by Babe Ruth and the outlawing of the spitball and other "freak delivery" pitches.
+
+There is also a very big dip in 1980
+
+
+```{r}
+sum_data <- batting_data %>% group_by(yearID) %>% summarise(avg_sb = mean(SB))
+
+lin_reg <- lm(avg_hr ~ yearID, average_homeruns)
+summary(lin_reg)
+
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=avg_sb)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=avg_sb))
+```
+
+
+```{r}
+sum_data <- batting_data %>% group_by(yearID) %>% summarise(base_avg_avg = mean(base_avg, na.rm=TRUE),
+                                                    slug_avg_avg = mean(slugging_avg, na.rm=TRUE))
+
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=base_avg_avg)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=base_avg_avg))
+
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=slug_avg_avg)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=slug_avg_avg))
+```
+
+The same dip from above appears here in 1980/81 as well.
+
+```{r}
+file_name <- 'Salaries.csv'
+
+sal_data <- read_csv(file_name)
+```
+
+
+```{r}
+sum_data <- sal_data %>% group_by(yearID) %>% summarise(avg_sal = mean(salary), max_sal = max(salary))
+
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=avg_sal)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=avg_sal))
+
+ggplot(data = sum_data) +
+  geom_line(mapping = aes(x=yearID, y=max_sal))
+```
+
+The salary data we have is incredibly linear, much to our surprise. The data only goes back to 1985 so it's not as revealing as it may have otherwise been. The maximum is quite exponential and a factor of ~10 greater than the average.
+
+
+```{r}
+bat_sal_data <- inner_join(batting_data, sal_data, copy=TRUE)
+
+ggplot(data = bat_sal_data) +
+  geom_jitter(aes(x=batting_avg, y=salary))
+```
+
+As we assumed, it is very difficult to predict salary based on just one data point. Because of the multitude of positions in baseball and ways to perform without being awesome when at bat, one can command a high salary without batting well.
+
+
+Because of the vast amount of data and the number of confounding variables, we have decided to build a shiny app which will allow users to explore the data. We plan to build an app that will:
+
+-Allow users to select up to two tables to select data from
+-Allow users to select a date range to view results from
+-Allow users to select an X and Y variable to plot
+-Allow users to toggle between data points and an average or median line
+-Allow users to have a linear regression on the plot w/ results
+-Allow users to animate a plot over time
+-Allow users to pick a league to analyze, or analyze each side by side
+-Pick a team to analyze
+-Get information about a specific team/player on the plot
+
+
+
+
