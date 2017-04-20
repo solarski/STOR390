@@ -8,9 +8,12 @@ choices <- list.files(pattern="*.csv")
 
 shinyServer(function(input, output, session) {
     
+    #Some shared variables that change
     files = reactiveValues(file1 = NULL)
     data = reactiveValues(data = NULL)
     
+    #These two observes detect when the tables have been changed (input$table<1,2>Selector)
+    #They take the file, load the data, and update the variable selector
     observe({
         files$file1 <- input$table1Selector
         
@@ -39,28 +42,39 @@ shinyServer(function(input, output, session) {
         }
     })
     
+    #The main piece of code which generates the plot
     output$mainPlot <- renderPlot({
+        #Determine the variables you want to plot, and whether or not to take the mean/regress
         x_var <- isolate(input$xSelector)
         y_var <- isolate(input$ySelector)
         mean <- isolate(input$meanSelector)
         regression <- isolate(input$regressionSelector)
         
+        #Run whenever the plot button is clicked
         input$plotButton
         
+        #If all of our data is valid
         if(!is.null(x_var) && !(x_var == "") && !is.null(y_var) && !(y_var == "") 
            && !is.null(data$data1) && !is.null(data$data2)){
             
+            #If the files match, don't join
             if(files$file1 == files$file2){
                 data$data = data$data1
-            } else {
-                joined_cols <- intersect(colnames(data$data1), colnames(data$data2))
-                print(joined_cols)
                 output$joinText <- renderText({
-                    paste("Joined tables on: ", joined_cols)
+                    paste("No tables have been joined.")
+                })
+            } else {
+                #If the files are different, print out the joined columns
+                #Which is just the intersection of columns
+                #And join them
+                output$joinText <- renderText({
+                    paste("Joined tables on: ", intersect(colnames(data$data1), colnames(data$data2)))
                 })
                 data$data = inner_join(data$data1, data$data2)
             }
             
+            #All of the values we need to plot
+            #X and Y variables, the data (maybe transformed), and the ggplot objects
             x_axis = x_var
             y_axis = y_var
             
@@ -68,6 +82,8 @@ shinyServer(function(input, output, session) {
             reg_type = NULL
             graph_type = NULL
             
+            #If mean is checked, group by the x variable and take the mean of the y
+            #Also, set the graph to be a line. Otherwise, make it a jitter plot
             if(mean == 1){
                 print("Generating average")
                 new_data = data$data %>% group_by_(x_var) %>% 
@@ -79,6 +95,8 @@ shinyServer(function(input, output, session) {
                 graph_type = geom_jitter()
             }
             
+            #If regression is checked, generate the regression and display coefficients
+            #And set generate a geom_smooth to place on top of the data
             if(regression){
                 print("Generating regression")
                 linreg <- lm(as.formula(paste(y_axis, " ~ ", x_axis)), new_data)
@@ -90,6 +108,7 @@ shinyServer(function(input, output, session) {
                 output$regressionTable <- renderDataTable(NULL)
             }
             
+            #Finally, generate the plot
             ggplot(data = new_data, aes_string(x = x_axis, y = y_axis)) + graph_type + reg_type
             
         }
