@@ -5,12 +5,22 @@ library(lazyeval)
 library(tidyverse)
 
 choices <- list.files(pattern="*.csv")
+defaultsX <- list("Batting.csv" = "Year", "Salaries.csv" = "Year")
+defaultsY <- list("Batting.csv" = "HomeRuns", "Salaries.csv" = "Salary")
+
+#Add animation over time!!!
 
 shinyServer(function(input, output, session) {
     
+    theme_set(theme_gray(base_size = 18))
+    
+    teamData <- read_csv("Teams.csv")
+    teams <- teamData$Team
+    
     #Some shared variables that change
-    files = reactiveValues(file1 = NULL)
-    data = reactiveValues(data = NULL)
+    files <- reactiveValues(file1 = NULL)
+    names <- reactiveValues(names = NULL)
+    data <- reactiveValues(data = NULL, mutatedData = NULL)
     
     #These two observes detect when the tables have been changed (input$table<1,2>Selector)
     #They take the file, load the data, and update the variable selector
@@ -18,12 +28,22 @@ shinyServer(function(input, output, session) {
         files$file1 <- input$table1Selector
         
         if(!is.na(files$file1)){
-            #data$data1 <- read_csv(files$file1)[1:1000,]
             data$data1 <- read_csv(files$file1)
+            
+            names$names <- c("None", colnames(data$data1), colnames(data$data2))
+            
+            updateSelectInput(session, "color",
+                              choices = names$names
+            )
+            
+            updateSelectInput(session, "facet",
+                              choices = names$names
+            )
             
             # Can also set the label and select items
             updateSelectInput(session, "xSelector",
-                              choices = colnames(data$data1)
+                              choices = colnames(data$data1),
+                              selected = defaultsX[input$table1Selector]
             )
         }
     })
@@ -32,84 +52,182 @@ shinyServer(function(input, output, session) {
         files$file2 <- input$table2Selector
         
         if(!is.na(files$file2)){
-            #data$data2 <- read_csv(files$file2)[1:1000,]
             data$data2 <- read_csv(files$file2)
+            
+            names$names <- c("None", colnames(data$data1), colnames(data$data2))
+            
+            updateSelectInput(session, "color",
+                              choices = names$names
+            )
+            
+            updateSelectInput(session, "facet",
+                              choices = names$names
+            )
             
             # Can also set the label and select items
             updateSelectInput(session, "ySelector",
-                              choices = colnames(data$data2)
+                              choices = colnames(data$data2),
+                              selected = defaultsY[input$table2Selector]
             )
         }
     })
     
+    #Join the two selected data sets and print out the columns which were joined on for reference
+    outputJoin <- function(){
+        #If the files match, don't join
+        if(files$file1 == files$file2){
+            data$data <- data$data1
+            output$joinText <- renderText({
+                paste("No tables have been joined.")
+            })
+        } else {
+            #If the files are different, print out the joined columns
+            #Which is just the intersection of columns
+            #And join them
+            output$joinText <- renderText({
+                joined_columns <- paste(intersect(colnames(data$data1), colnames(data$data2)), collapse = ', ')
+                joined_sentence <- paste("Joined on: ", joined_columns)
+                joined_sentence
+            })
+            data$data <- inner_join(data$data1, data$data2)
+        }
+    }
+    
+    #Fill the table with the points that have been hovered over
+    output$plotHoverInfo <- renderDataTable({nearPoints(data$mutatedData, input$plotHover, threshold = 20)}, options = list(scrollX = TRUE))
+    
     #The main piece of code which generates the plot
     output$mainPlot <- renderPlot({
         #Determine the variables you want to plot, and whether or not to take the mean/regress
-        x_var <- isolate(input$xSelector)
-        y_var <- isolate(input$ySelector)
-        mean <- isolate(input$meanSelector)
+        x_axis <- isolate(input$xSelector)
+        x_name <- x_axis
+        y_axis <- isolate(input$ySelector)
+        y_name <- y_axis
         regression <- isolate(input$regressionSelector)
+        
+        year_min <- isolate(input$years[1])
+        year_max <- isolate(input$years[2])
+        
+        plot_type <- isolate(input$plotType)
+        color <- isolate(input$color)
+        facet <- isolate(input$facet)
+        mutation <- isolate(input$mutation)
         
         #Run whenever the plot button is clicked
         input$plotButton
         
         #If all of our data is valid
-        if(!is.null(x_var) && !(x_var == "") && !is.null(y_var) && !(y_var == "") 
+        if(!is.null(x_axis) && !(x_axis == "") && !is.null(y_axis) && !(y_axis == "") 
            && !is.null(data$data1) && !is.null(data$data2)){
             
-            #If the files match, don't join
-            if(files$file1 == files$file2){
-                data$data = data$data1
-                output$joinText <- renderText({
-                    paste("No tables have been joined.")
-                })
-            } else {
-                #If the files are different, print out the joined columns
-                #Which is just the intersection of columns
-                #And join them
-                output$joinText <- renderText({
-                    paste("Joined tables on: ", intersect(colnames(data$data1), colnames(data$data2)))
-                })
-                data$data = inner_join(data$data1, data$data2)
+            outputJoin()
+            
+            mapping <- NULL
+            new_data <- NULL
+            reg_type <- NULL
+            graph_type <- NULL
+            coord_type <- NULL
+            facet_type <- NULL
+            title_type <- NULL
+            
+            new_data <- data$data
+            
+            #Filtering (Player, Team, Year)
+            if('Year' %in% colnames(new_data)){
+                new_data <- filter(new_data, Year > year_min, Year < year_max)
             }
-            
-            #All of the values we need to plot
-            #X and Y variables, the data (maybe transformed), and the ggplot objects
-            x_axis = x_var
-            y_axis = y_var
-            
-            new_data = NULL
-            reg_type = NULL
-            graph_type = NULL
+            if('Player' %in% colnames(new_data)){
+                if(!is.null(isolate(input$players)) && !is.na(isolate(input$players))){
+                    new_data <- filter(new_data, Player %in% isolate(input$players))
+                }
+            }
+            if('Team' %in% colnames(new_data)){
+                if(!is.null(isolate(input$teams)) && !is.na(isolate(input$teams))){
+                    new_data <- filter(new_data, Team %in% isolate(input$teams))
+                }
+            }
             
             #If mean is checked, group by the x variable and take the mean of the y
             #Also, set the graph to be a line. Otherwise, make it a jitter plot
-            if(mean == 1){
-                print("Generating average")
-                new_data = data$data %>% group_by_(x_var) %>% 
-                    summarise_(avg = interp(~mean(var, na.rm=TRUE), var = as.name(y_var)))
-                y_axis = "avg"
-                graph_type = geom_line()
+            if(mutation == "Mean"){
+                new_data <- new_data %>% group_by_(x_axis) %>% 
+                    summarise_(avg = interp(~mean(var, na.rm=TRUE), var = as.name(y_axis)))
+                y_name <- paste("Average ", y_axis)
+                y_axis <- "avg"
+            } else if(mutation == "Median"){
+                new_data <- new_data %>% group_by_(x_axis) %>% 
+                    summarise_(med = interp(~median(var, na.rm=TRUE), var = as.name(y_axis)))
+                y_name <- paste("Median ", y_axis)
+                y_axis <- "med"
+            } else if(mutation == "Max"){
+                new_data <- new_data %>% group_by_(x_axis) %>% 
+                    summarise_(max = interp(~max(var, na.rm=TRUE), var = as.name(y_axis)))
+                y_name <- paste("Maximum ", y_axis)
+                y_axis <- "max"
+            } else if(mutation == "Min"){
+                new_data <- new_data %>% group_by_(x_axis) %>% 
+                    summarise_(min = interp(~min(var, na.rm=TRUE), var = as.name(y_axis)))
+                y_name <- paste("Mimumum ", y_axis)
+                y_axis <- "min"
             } else {
-                new_data = data$data
-                graph_type = geom_jitter()
+                new_data <- new_data
+            }
+            
+            #If facet is not set to 'None', facet
+            if(facet != "None"){
+                facet_type <- facet_wrap(as.formula(paste("~", facet)))
             }
             
             #If regression is checked, generate the regression and display coefficients
             #And set generate a geom_smooth to place on top of the data
             if(regression){
                 print("Generating regression")
-                linreg <- lm(as.formula(paste(y_axis, " ~ ", x_axis)), new_data)
-                
-                output$regressionTable <- renderDataTable(tidy(linreg))
-                
-                reg_type = geom_smooth(method = "lm", col = "blue")
-            } else {
-                output$regressionTable <- renderDataTable(NULL)
+                reg_type <- geom_smooth(method = "lm", col = "blue")
             }
             
+            #Generate the aes mapping, potentially applying color
+            if(is.null(mapping)){
+                mapping <- aes_string(x = x_axis, y = y_axis)
+                if(!is.null(color) && !(color == "None")){
+                    mapping <- aes_string(x = x_axis, y = y_axis, color = color)
+                }
+            }
+            
+            if(is.null(graph_type)){
+                if(plot_type == "Scatter"){
+                    graph_type <- geom_point()
+                } else if(plot_type == "Scatter (Jitter)"){
+                    graph_type <- geom_jitter()
+                } else if(plot_type == "Line"){
+                    graph_type <- geom_line()
+                } else if(plot_type == "Bar"){
+                    if(mutation == "None"){
+                        graph_type <- geom_bar()
+                        mapping <- aes_string(x = x_axis)
+                    } else {
+                        graph_type <- geom_bar(stat = "identity")
+                        mapping <- aes_string(x = x_axis, y = y_axis)
+                    }
+                } else if(plot_type == "Histogram"){
+                    graph_type <- geom_histogram()
+                    mapping <- aes_string(x = x_axis)
+                }
+            }
+            
+            if(is.null(title_type)){
+                ggtitle(paste(y_name, " vs. ", x_name))
+            }
+            
+            data$mutatedData <- new_data
+            
             #Finally, generate the plot
-            ggplot(data = new_data, aes_string(x = x_axis, y = y_axis)) + graph_type + reg_type
+            ggplot(data = data$mutatedData, mapping = mapping) + 
+                graph_type + 
+                reg_type +
+                coord_type + 
+                facet_type +
+                theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+                title_type
             
         }
     })
