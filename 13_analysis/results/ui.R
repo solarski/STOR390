@@ -5,15 +5,15 @@ library(shinyjs)
 library(lazyeval)
 library(tidyverse)
 
-fileChoices <- list.files(pattern="*.csv")
+fileChoices <- list.files(path = "../data/", pattern="*.csv")
 
-teamData <- read_csv("Teams.csv") %>% arrange(Team) %>% group_by(Team) %>% mutate(newName = paste0(unique(TeamName), " (", unique(Team), ")", collapse = ", "))
+teamData <- read_csv("../data/Teams.csv") %>% arrange(Team) %>% group_by(Team) %>% mutate(newName = paste0(unique(TeamName), " (", unique(Team), ")", collapse = ", ", sep = ""))
 teams <- as.list(unique(teamData$Team))
 team_names <- as.list(unique(teamData$newName))
 names(teams) <- team_names
 
-playerData <- read_csv("Master.csv")
-playersFull <- paste(playerData$Player, ':', playerData$FirstName, " ", playerData$LastName, "(", playerData$Player, ")")
+playerData <- read_csv("../data/Master.csv")
+playersFull <- paste(playerData$Player, ':', playerData$FirstName, " ", playerData$LastName, "(", playerData$Player, ")", sep = "")
 players <- lapply(str_split(playersFull, ":"), `[[`, 1)
 names(players) <- lapply(str_split(playersFull, ":"), `[[`, 2)
 
@@ -47,7 +47,6 @@ shinyUI(fluidPage(
             
             checkboxInput("regressionSelector", "Plot regression line", value = FALSE),
             actionButton("plotButton", "Plot!")
-            #,actionButton("animateButton", "Animate!")
         ),
         mainPanel(
             plotOutput("mainPlot",
@@ -62,7 +61,8 @@ shinyUI(fluidPage(
                          fluidRow(
                              column(10, dataTableOutput("plotHoverInfo"))
                          )),
-                tabPanel("Join Info", textOutput("joinText"))
+                tabPanel("Join Info", textOutput("joinText")),
+                tabPanel("Historical Rules and Changes", pre(includeText("history.txt")))
             )
         )
     )

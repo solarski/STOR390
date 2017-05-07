@@ -4,17 +4,15 @@ library(shinyjs)
 library(lazyeval)
 library(tidyverse)
 
-choices <- list.files(pattern="*.csv")
+choices <- list.files(pattern="../data/*.csv")
 defaultsX <- list("Batting.csv" = "Year", "Salaries.csv" = "Year")
 defaultsY <- list("Batting.csv" = "HomeRuns", "Salaries.csv" = "Salary")
-
-#Add animation over time!!!
 
 shinyServer(function(input, output, session) {
     
     theme_set(theme_gray(base_size = 18))
     
-    teamData <- read_csv("Teams.csv")
+    teamData <- read_csv("../data/Teams.csv")
     teams <- teamData$Team
     
     #Some shared variables that change
@@ -27,48 +25,53 @@ shinyServer(function(input, output, session) {
     observe({
         files$file1 <- input$table1Selector
         
-        if(!is.na(files$file1)){
-            data$data1 <- read_csv(files$file1)
-            
-            names$names <- c("None", colnames(data$data1), colnames(data$data2))
-            
-            updateSelectInput(session, "color",
-                              choices = names$names
-            )
-            
-            updateSelectInput(session, "facet",
-                              choices = names$names
-            )
-            
-            # Can also set the label and select items
-            updateSelectInput(session, "xSelector",
-                              choices = colnames(data$data1),
-                              selected = defaultsX[input$table1Selector]
-            )
+        if(!is.na(files$file1) && files$file1 != ""){
+            tryCatch({
+                filename <- paste("../data/", files$file1, sep = "")
+                data$data1 <- read_csv(filename)
+                
+                names$names <- c("None", colnames(data$data1), colnames(data$data2))
+                
+                updateSelectInput(session, "color",
+                                  choices = names$names
+                )
+                
+                updateSelectInput(session, "facet",
+                                  choices = names$names
+                )
+                
+                # Can also set the label and select items
+                updateSelectInput(session, "xSelector",
+                                  choices = colnames(data$data1),
+                                  selected = defaultsX[input$table1Selector]
+                )
+            })
         }
     })
     
     observe({
         files$file2 <- input$table2Selector
         
-        if(!is.na(files$file2)){
-            data$data2 <- read_csv(files$file2)
-            
-            names$names <- c("None", colnames(data$data1), colnames(data$data2))
-            
-            updateSelectInput(session, "color",
-                              choices = names$names
-            )
-            
-            updateSelectInput(session, "facet",
-                              choices = names$names
-            )
-            
-            # Can also set the label and select items
-            updateSelectInput(session, "ySelector",
-                              choices = colnames(data$data2),
-                              selected = defaultsY[input$table2Selector]
-            )
+        if(!is.na(files$file2) && files$file2 != ""){
+            tryCatch({
+                data$data2 <- read_csv(paste("../data/", files$file2, sep = ""))
+                
+                names$names <- c("None", colnames(data$data1), colnames(data$data2))
+                
+                updateSelectInput(session, "color",
+                                  choices = names$names
+                )
+                
+                updateSelectInput(session, "facet",
+                                  choices = names$names
+                )
+                
+                # Can also set the label and select items
+                updateSelectInput(session, "ySelector",
+                                  choices = colnames(data$data2),
+                                  selected = defaultsY[input$table2Selector]
+                )
+            })
         }
     })
     
@@ -95,7 +98,11 @@ shinyServer(function(input, output, session) {
     }
     
     #Fill the table with the points that have been hovered over
-    output$plotHoverInfo <- renderDataTable({nearPoints(data$mutatedData, input$plotHover, threshold = 20)}, options = list(scrollX = TRUE))
+    output$plotHoverInfo <- renderDataTable({
+        tryCatch({
+            nearPoints(data$mutatedData, input$plotHover, threshold = 20)
+        })
+    }, options = list(scrollX = TRUE))
     
     #The main piece of code which generates the plot
     output$mainPlot <- renderPlot({
@@ -202,7 +209,6 @@ shinyServer(function(input, output, session) {
             #If regression is checked, generate the regression and display coefficients
             #And set generate a geom_smooth to place on top of the data
             if(regression){
-                print("Generating regression")
                 reg_type <- geom_smooth(method = "lm", col = "blue")
             }
             
@@ -214,6 +220,7 @@ shinyServer(function(input, output, session) {
                 }
             }
             
+            #Determine the plot type
             if(is.null(graph_type)){
                 if(plot_type == "Scatter"){
                     graph_type <- geom_point()
@@ -235,6 +242,7 @@ shinyServer(function(input, output, session) {
                 }
             }
             
+            #Set the title
             if(is.null(title_type)){
                 title_type <- ggtitle(paste(y_name, " vs. ", x_name))
             }
