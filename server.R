@@ -87,6 +87,7 @@ shinyServer(function(input, output, session) {
             output$joinText <- renderText({
                 joined_columns <- paste(intersect(colnames(data$data1), colnames(data$data2)), collapse = ', ')
                 joined_sentence <- paste("Joined on: ", joined_columns)
+                print(jointed_sentence)
                 joined_sentence
             })
             data$data <- inner_join(data$data1, data$data2)
@@ -150,23 +151,43 @@ shinyServer(function(input, output, session) {
             #If mean is checked, group by the x variable and take the mean of the y
             #Also, set the graph to be a line. Otherwise, make it a jitter plot
             if(mutation == "Mean"){
-                new_data <- new_data %>% group_by_(x_axis) %>% 
-                    summarise_(avg = interp(~mean(var, na.rm=TRUE), var = as.name(y_axis)))
+                if(facet != "None"){
+                    new_data <- new_data %>% group_by_(x_axis, facet) %>% 
+                        summarise_(avg = interp(~mean(var, na.rm=TRUE), var = as.name(y_axis)))
+                } else {
+                    new_data <- new_data %>% group_by_(x_axis) %>% 
+                        summarise_(avg = interp(~mean(var, na.rm=TRUE), var = as.name(y_axis)))
+                }
                 y_name <- paste("Average ", y_axis)
                 y_axis <- "avg"
             } else if(mutation == "Median"){
-                new_data <- new_data %>% group_by_(x_axis) %>% 
-                    summarise_(med = interp(~median(var, na.rm=TRUE), var = as.name(y_axis)))
+                if(facet != "None"){
+                    new_data <- new_data %>% group_by_(x_axis, facet) %>% 
+                        summarise_(med = interp(~median(var, na.rm=TRUE), var = as.name(y_axis)))
+                } else {
+                    new_data <- new_data %>% group_by_(x_axis) %>% 
+                        summarise_(med = interp(~median(var, na.rm=TRUE), var = as.name(y_axis)))
+                }
                 y_name <- paste("Median ", y_axis)
                 y_axis <- "med"
             } else if(mutation == "Max"){
-                new_data <- new_data %>% group_by_(x_axis) %>% 
-                    summarise_(max = interp(~max(var, na.rm=TRUE), var = as.name(y_axis)))
+                if(facet != "None"){
+                    new_data <- new_data %>% group_by_(x_axis, facet) %>% 
+                        summarise_(max = interp(~max(var, na.rm=TRUE), var = as.name(y_axis)))
+                } else {
+                    new_data <- new_data %>% group_by_(x_axis) %>% 
+                        summarise_(max = interp(~max(var, na.rm=TRUE), var = as.name(y_axis)))
+                }
                 y_name <- paste("Maximum ", y_axis)
                 y_axis <- "max"
             } else if(mutation == "Min"){
-                new_data <- new_data %>% group_by_(x_axis) %>% 
-                    summarise_(min = interp(~min(var, na.rm=TRUE), var = as.name(y_axis)))
+                if(facet != "None"){
+                    new_data <- new_data %>% group_by_(x_axis, facet) %>% 
+                        summarise_(min = interp(~min(var, na.rm=TRUE), var = as.name(y_axis)))
+                } else {
+                    new_data <- new_data %>% group_by_(x_axis) %>% 
+                        summarise_(min = interp(~min(var, na.rm=TRUE), var = as.name(y_axis)))
+                }
                 y_name <- paste("Mimumum ", y_axis)
                 y_axis <- "min"
             } else {
@@ -215,7 +236,7 @@ shinyServer(function(input, output, session) {
             }
             
             if(is.null(title_type)){
-                ggtitle(paste(y_name, " vs. ", x_name))
+                title_type <- ggtitle(paste(y_name, " vs. ", x_name))
             }
             
             data$mutatedData <- new_data
