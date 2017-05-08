@@ -1,6 +1,6 @@
 ---
 title: "EDA"
-author: "Alex Solarski, Sam Sholder, Leo Zhang"
+author: "Alex Solarski, Sam Sholder, Leo Zhao"
 date: "April 19, 2017"
 output: html_document
 ---
