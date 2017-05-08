@@ -10,41 +10,44 @@ library(tidyverse)
 library(lazyeval)
 library(dplyr)
 
-file_name <- 'Batting.csv'
+file_name <- '../data/Batting.csv'
 
 batting_data <- read_csv(file_name)
 ```
 
 
+This was used to create a few new potentially intersting variables. Doesn't need to be run now.
 ```{r}
-batting_data <- batting_data %>% mutate(batting_avg = `H`/`AB`)
-batting_data <- batting_data %>% mutate(`1B` = `H` - `2B` - `3B` - `HR`,
-                        slugging_avg = (`1B` + `2B`*2 + `3B`*3 + `HR`*4)/`AB`,
-                        base_avg = (`1B` + `2B`*2 + `3B`*3 + `HR`*4))
+#batting_data <- batting_data %>% mutate(BattingAvg = `Hits`/`AtBats`)
+#batting_data <- batting_data %>% mutate(`Singles` = `Hits` - `Doubles` - `Triples` - `HomeRuns`,
+#                        SluggingAvg = (`Singles` + `Doubles`*2 + `Triples`*3 + `HomeRuns`*4)/`AtBats`,
+#                        BaseAvg = (`Singles` + `Doubles`*2 + `Triples`*3 + `HomeRuns`*4)/`Hits`)
+#write_csv(batting_data, "../data/Batting.csv")
 ```
 
 
 ```{r}
 ggplot(data = batting_data) +
-  geom_jitter(mapping = aes(x=yearID, y=batting_avg))
+  geom_jitter(mapping = aes(x=Year, y=BattingAvg))
 ```
 
 It appears there isn't really a trend between year and batting average as the values are all over the place. 
 
 ```{r}
-group <- "yearID"
-col <- "HR"
-sum_data <- batting_data %>% group_by(yearID) %>% summarise(avg_hr = mean(HR, na.rm=TRUE), max_hr = max(HR, na.rm=TRUE))
+#This was done as a test for passing variable as columns/values
+group <- "Year"
+col <- "HomeRuns"
+sum_data <- batting_data %>% group_by(Year) %>% summarise(avg_hr = mean(HomeRuns, na.rm=TRUE), max_hr = max(HomeRuns, na.rm=TRUE))
 
-lin_reg <- lm(avg_hr ~ yearID, sum_data)
+lin_reg <- lm(avg_hr ~ Year, sum_data)
 summary(lin_reg)
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=avg_hr)) +
-  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=avg_hr))
+  geom_line(mapping = aes(x=Year, y=avg_hr)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=Year, y=avg_hr))
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=max_hr))
+  geom_line(mapping = aes(x=Year, y=max_hr))
 ```
 
 There is a pretty consistent increase in home runs per person with a correlation of .78, so we feel like this is something to look more in to. COnsidering that the average does not take in to account the large number of players that play primarily defensive positions, we also chose to look at the maximum number of HRs per year. It turns out that there is a large cultural shift in the 1920's started by Babe Ruth and the outlawing of the spitball and other "freak delivery" pitches.
@@ -53,46 +56,46 @@ There is also a very big dip in 1980
 
 
 ```{r}
-sum_data <- batting_data %>% group_by(yearID) %>% summarise(avg_sb = mean(SB))
+sum_data <- batting_data %>% group_by(Year) %>% summarise(avg_sb = mean(StolenBases))
 
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=avg_sb)) +
-  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=avg_sb))
+  geom_line(mapping = aes(x=Year, y=avg_sb)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=Year, y=avg_sb))
 ```
 
 
 ```{r}
-sum_data <- batting_data %>% group_by(yearID) %>% summarise(base_avg_avg = mean(base_avg, na.rm=TRUE),
-                                                    slug_avg_avg = mean(slugging_avg, na.rm=TRUE))
+sum_data <- batting_data %>% group_by(Year) %>% summarise(base_avg_avg = mean(BaseAvg, na.rm=TRUE),
+                                                    slug_avg_avg = mean(SluggingAvg, na.rm=TRUE))
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=base_avg_avg)) +
-  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=base_avg_avg))
+  geom_line(mapping = aes(x=Year, y=base_avg_avg)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=Year, y=base_avg_avg))
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=slug_avg_avg)) +
-  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=slug_avg_avg))
+  geom_line(mapping = aes(x=Year, y=slug_avg_avg)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=Year, y=slug_avg_avg))
 ```
 
-The same dip from above appears here in 1980/81 as well.
+The same dip from above appears here in 1980/81 as well, as well as a dip from 1900-1920. We believe this is also explained by the splitball. The mean base average plot however shows that players were hitting harder than ever or achieving a better return for the same hit. Maybe running faster?
 
 ```{r}
-file_name <- 'Salaries.csv'
+file_name <- '../data/Salaries.csv'
 
 sal_data <- read_csv(file_name)
 ```
 
 
 ```{r}
-sum_data <- sal_data %>% group_by(yearID) %>% summarise(avg_sal = mean(salary), max_sal = max(salary))
+sum_data <- sal_data %>% group_by(Year) %>% summarise(avg_sal = mean(Salary), max_sal = max(Salary))
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=avg_sal)) +
-  stat_smooth(method = "lm", col = "red", mapping = aes(x=yearID, y=avg_sal))
+  geom_line(mapping = aes(x=Year, y=avg_sal)) +
+  stat_smooth(method = "lm", col = "red", mapping = aes(x=Year, y=avg_sal))
 
 ggplot(data = sum_data) +
-  geom_line(mapping = aes(x=yearID, y=max_sal))
+  geom_line(mapping = aes(x=Year, y=max_sal))
 ```
 
 The salary data we have is incredibly linear, much to our surprise. The data only goes back to 1985 so it's not as revealing as it may have otherwise been. The maximum is quite exponential and a factor of ~10 greater than the average.
@@ -102,7 +105,7 @@ The salary data we have is incredibly linear, much to our surprise. The data onl
 bat_sal_data <- inner_join(batting_data, sal_data, copy=TRUE)
 
 ggplot(data = bat_sal_data) +
-  geom_jitter(aes(x=batting_avg, y=salary))
+  geom_jitter(aes(x=BattingAvg, y=Salary))
 ```
 
 As we assumed, it is very difficult to predict salary based on just one data point. Because of the multitude of positions in baseball and ways to perform without being awesome when at bat, one can command a high salary without batting well.
